@@ -229,12 +229,14 @@ must not be reported as a failed save.
 
 [`queries.sql`](queries.sql) contains executable prepared read examples, also
 used by the verification harness. A revision list selects `budget_revision`
-by budget ID ordered by `version DESC`; an unknown version returns not found.
+by authenticated owner and budget ID ordered by `version DESC`; an unknown
+version or a Budget owned by someone else returns not found. Supply owner IDs
+from the authenticated server context, never a client-supplied owner field.
 
-- Revision detail calls `budget_lines(budget_id, version, false)`: monthly line
+- Revision detail calls `budget_lines(budget_id, version, false, owner_id)`: monthly line
   membership and latest state are selected at the Budget revision coordinate;
   category name/order/status use the pinned catalog revision coordinate.
-- Current saved values call `budget_lines(budget_id, current_version, true)`:
+- Current saved values call `budget_lines(budget_id, current_version, true, owner_id)`:
   current catalog labels/order/status include archived saved lines. Combine with
   `catalog_current(owner_id)` to overlay active categories absent from saved lines
   as UNSET. This overlay creates no monthly rows until Save. An unsaved Budget

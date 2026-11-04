@@ -1,14 +1,15 @@
 -- Read-only examples, prepared on the caller's connection.
 -- Use one read-only REPEATABLE READ transaction when combining these queries.
 -- true: current editor catalog; false: catalog pinned by the Budget revision.
-PREPARE budget_lines(uuid, bigint, boolean) AS
+-- The fourth argument is the owner ID from the authenticated server context.
+PREPARE budget_lines(uuid, bigint, boolean, uuid) AS
 WITH coordinates AS (
     SELECT r.budget_id, r.changed_at AS budget_time, c.changed_at AS catalog_time
     FROM budget.budget_revision r
     JOIN budget.catalog_guard g ON g.owner_id = r.owner_id
     JOIN budget.catalog_revision c ON c.owner_id = r.owner_id
         AND c.version = CASE WHEN $3 THEN g.current_version ELSE r.catalog_version END
-    WHERE r.budget_id = $1 AND r.version = $2
+    WHERE r.budget_id = $1 AND r.version = $2 AND r.owner_id = $4
 )
 SELECT k.line_id, k.kind_code, k.category_id,
        n.name, p.position, h.status_code, s.state_code, a.amount

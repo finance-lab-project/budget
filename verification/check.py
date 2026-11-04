@@ -165,8 +165,9 @@ def advance_catalog():
 queries = (Path(__file__).resolve().parents[1] / "docs/queries.sql").read_text()
 
 
-def projection(version, current=False):
-    output = sql(queries + f"EXECUTE budget_lines({q(BUDGET)}, {version}, {'true' if current else 'false'});")
+def projection(version, current=False, *, owner=OWNER, budget_id=BUDGET):
+    output = sql(queries + f"EXECUTE budget_lines({q(budget_id)}, {version}, "
+                 f"{'true' if current else 'false'}, {q(owner)});")
     return [row.split("|") for row in output.splitlines()] if output else []
 
 
@@ -212,6 +213,25 @@ check(sql(f"SELECT count(DISTINCT changed_at) FROM budget.line_amount_state s JO
           f"WHERE budget_id={q(BUDGET)}") == "1", "initial line states share one coordinate")
 check(projection(1)[1][-2:] == ["SET", "0.00"] and projection(1)[2][-2:] == ["UNSET", ""], "zero and UNSET project distinctly")
 check(projection(999) == [], "unknown revision has no latest-state fallback")
+
+# Both owners have a real budget in the same month. A known foreign Budget UUID
+# must return no rows, in both read modes, while each owner's own read still works.
+other_budget, other_income, other_investment = [str(uuid4()) for _ in range(3)]
+sql("BEGIN;" + create_budget(other_budget, "2026-11-01", other_income, other_investment,
+                            static_owner=OTHER, key_owner=OTHER)
+    + line(other_income, "INCOME", budget_id=other_budget, owner=OTHER, state="SET", amount="123.45")
+    + line(other_investment, "INVESTMENT", budget_id=other_budget, owner=OTHER) + "COMMIT;")
+for current in [False, True]:
+    mode = "current" if current else "historical"
+    for label, owner, own_budget, foreign_budget, own_income, row_count in [
+        ("A", OWNER, BUDGET, other_budget, INCOME, 3),
+        ("B", OTHER, other_budget, BUDGET, other_income, 2),
+    ]:
+        own_rows = projection(1, current, owner=owner, budget_id=own_budget)
+        check(len(own_rows) == row_count and own_rows[0][0] == own_income,
+              f"{mode} read returns owner {label}'s own Budget")
+        check(projection(1, current, owner=owner, budget_id=foreign_budget) == [],
+              f"{mode} read rejects foreign Budget for owner {label}")
 
 # All statements succeed until COMMIT for invalid pairing cases.
 state_insert = f"INSERT INTO budget.line_amount_state(line_id, changed_at, state_code) SELECT {q(INCOME)}, t, {{state}} FROM stamp;"

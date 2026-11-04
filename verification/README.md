@@ -58,7 +58,7 @@ not a claim that the application's stable-version baseline has been selected.
   validated one migration. An initial offline attempt lacked a cached Jackson
   dependency; the online command fetched it successfully. The final fresh run
   used the identical command with `-o` added and reported BUILD SUCCESS.
-- The Python command above completed with **All 104 checks passed**. Negative
+- The Python command above completed with **All 112 checks passed**. Negative
   cases check the expected SQLSTATE and compare every Budget table before/after.
   Pairing cases additionally require a marker emitted after all DML and before
   actual COMMIT, proving that rejection occurred at commit, not during assembly.
@@ -66,6 +66,12 @@ not a claim that the application's stable-version baseline has been selected.
   database was read or changed.
 - A repeat of the offline Maven migrate/validate command reported schema version
   1 already up to date, no migration necessary, and BUILD SUCCESS.
+- The owner-scope fix was verified with the offline Maven command and Python
+  command above on a fresh database. Eight regression assertions cover two
+  owners with budgets in the same month: each owner's own reads return their
+  lines, while foreign-owner reads return no rows, in both current and historical
+  modes. The owner argument represents identity from the authenticated server
+  context, not client input.
 
 Coverage includes fixed TEXT seeds and empty editable catalog; explicit UUID
 storage; BIGINT revisions; atomic ten-category initialization and rollback;
@@ -75,8 +81,9 @@ same-owner references and contradictions between keys and Anchor facts; valid
 SET/amount insertion in either order and UNSET-only commits; missing companion,
 orphan amount, mismatched coordinate and UNSET-with-amount commit failures;
 rollback of facts, guards and revisions; zero/maximum/range/non-finite amounts;
-first-day dates; catalog-pinned historical labels/order/status; retained archived
-lines; line absence before creation; new active categories without monthly rows;
+first-day dates; owner-scoped current/historical reads; catalog-pinned historical
+labels/order/status; retained archived lines; line absence before creation;
+new active categories without monthly rows;
 set/clear/set history; unknown revisions; first-revision clocks; equal/backward
 clock arithmetic and a real write after a future recording coordinate; shared
 microsecond coordinates; UTC-to-Moscow conversion; no-write/no-op transactions.
@@ -84,7 +91,7 @@ microsecond coordinates; UTC-to-Moscow conversion; no-write/no-op transactions.
 The checks exercise representative SQL transactions, not a Java implementation.
 They do not test user-input parsing, Russian UI formatting, Java UUID generation,
 normalization-based no-op detection, actual Java startup initialization,
-multi-session races, connection failure/unknown commit recovery or application
-authorization. Those need application/ORM integration tests in the relevant
+multi-session races, connection failure/unknown commit recovery or end-to-end
+application authorization. Those need application/ORM integration tests in the relevant
 delivery issues. The SQL read examples are executed directly from
 [`docs/queries.sql`](../docs/queries.sql).
