@@ -10,8 +10,14 @@ Java without Spring. Business modules own their domain, application API, Vaadin 
 
 The [Budget domain](docs/domain.md) implements RUB amounts, exact monthly totals,
 the owner-wide category catalog and Russian input/presentation for [issue #2](https://github.com/finance-lab-project/budget/issues/2).
-Run `mvn -B -ntp clean verify -Dsource.revision="$(git rev-parse HEAD)"` with Java 27
-and Maven 3.10.0. Persistence, transactional initialization, UI and application
-assembly integration remain separate delivery work.
+The [persistence adapter](docs/persistence.md) implements atomic catalog/Budget
+saves, initialization, current reads and recorded history for [issue #3](https://github.com/finance-lab-project/budget/issues/3).
+Run `scripts/verify.sh` with the pinned Java 27 toolchain, Maven 3.10.0 and Docker
+already running. It builds the exact ORM dependency and verifies the module on
+disposable PostgreSQL 18.6. UI and application assembly integration remain separate work.
 
-The [R1 schema design](docs/schema.md) includes a draft Flyway migration, diagram, write/read contracts and [disposable PostgreSQL verification](verification/README.md). It is design work; no runnable application or deployment is claimed. Separate learning issues are not part of this backlog. Use synthetic examples only; no real financial data, employer material, secrets or local paths.
+The [R1 schema design](docs/schema.md) includes the original Flyway migration,
+diagram, write/read contracts and [SQL design verification](verification/README.md).
+The adapter uses that migration unchanged. No runnable UI or deployment is claimed.
+Separate learning issues are not part of this backlog. Use synthetic examples only;
+no real financial data, employer material, secrets or local paths.
