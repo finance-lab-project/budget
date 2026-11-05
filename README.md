@@ -14,10 +14,17 @@ The [persistence adapter](docs/persistence.md) implements atomic catalog/Budget
 saves, initialization, current reads and recorded history for [issue #3](https://github.com/finance-lab-project/budget/issues/3).
 Run `scripts/verify.sh` with the pinned Java 27 toolchain, Maven 3.10.0 and Docker
 already running. It builds the exact ORM dependency and verifies the module on
-disposable PostgreSQL 18.6. UI and application assembly integration remain separate work.
+disposable PostgreSQL 18.6.
+
+The [Russian Vaadin UI](docs/ui.md) implements the monthly planner, category
+settings, explicit saves and read-only history for [issue #4](https://github.com/finance-lab-project/budget/issues/4).
+Run `scripts/verify-ui.sh` with the pinned Java/Node/Jetty tools for synthetic
+browser journeys against disposable PostgreSQL. The root supplies authenticated
+session identity and embeds the component in its protected route.
 
 The [R1 schema design](docs/schema.md) includes the original Flyway migration,
 diagram, write/read contracts and [SQL design verification](verification/README.md).
-The adapter uses that migration unchanged. No runnable UI or deployment is claimed.
+The adapter uses that migration unchanged. Production authentication, root release
+assembly integration and deployment remain separate work.
 Separate learning issues are not part of this backlog. Use synthetic examples only;
 no real financial data, employer material, secrets or local paths.
