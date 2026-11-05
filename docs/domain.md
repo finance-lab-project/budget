@@ -32,7 +32,8 @@ catalog and adds no categories. Current presentation uses `spending(currentCatal
 historical presentation must supply the catalog snapshot pinned by that revision.
 Unknown category references and foreign owners fail rather than dropping amounts.
 Immutable Budget/catalog snapshots preserve the supplied old values and labels;
-loading revisions and recording their versions are persistence/application work.
+loading revisions and recording their versions belong to the
+[persistence adapter](persistence.md).
 
 ## Owner-wide catalog
 
@@ -49,10 +50,11 @@ reassignment or restore operation is exposed. Adding a same-named category creat
 a new ID. One catalog is supplied to all of an owner's months; budgets contain
 category references, not independent catalog copies.
 
-Initialization here is a pure domain factory. The future startup/application
-initializer must claim the catalog and persist its complete initial revision
+Initialization here is a pure domain factory. The persistence adapter's
+`initializeCatalog` claims the catalog and persists its complete initial revision
 atomically after migrations, following [the write protocol](schema.md#initialization-and-write-protocol).
-This increment implements no database access, transaction or startup initializer.
+The domain remains independent of database access and transactions; the composition
+root must invoke the adapter's initializer after migrations.
 
 ## Russian presentation boundary
 
@@ -80,14 +82,16 @@ machine defaults. Calendar widgets and translations remain UI work.
 Use the application's pinned Java 27 and Maven 3.10.0 toolchain:
 
 ```sh
-mvn -B -ntp clean verify -Dsource.revision="$(git rev-parse HEAD)"
+scripts/prepare-orm.sh
+mvn -B -ntp test -Dsource.revision="$(git rev-parse HEAD)"
 ```
 
 JUnit 6.1.3 is test-only. The tests cover the accepted money/date examples and
 invalid boundaries, typed-value precision, unset/zero, exact/negative totals,
 UUID identity, default order, duplicate/blank labels, seeding preservation,
 cross-month catalog changes and archive behavior. No database is needed; the
-existing [schema harness](../verification/README.md) remains independent.
+existing [schema harness](../verification/README.md) remains independent. Use
+`scripts/verify.sh` for the [Java persistence integration tests](persistence.md#verification).
 
 The parent is not yet published. As in the ORM module, the build uses an exact
 vendored copy of `org.financelab:build-parent:0.1.0` so a clean checkout needs no
