@@ -9,10 +9,15 @@
     <artifactId>budget</artifactId><version>0.1.0</version>
     <name>Finance Lab Budget</name>
     <properties>
+        <vaadin.version>25.3.5</vaadin.version>
         <source.repository>https://github.com/finance-lab-project/budget</source.repository>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
+    <dependencyManagement><dependencies>
+        <dependency><groupId>com.vaadin</groupId><artifactId>vaadin-bom</artifactId><version>${vaadin.version}</version><type>pom</type><scope>import</scope></dependency>
+    </dependencies></dependencyManagement>
     <dependencies>
+        <dependency><groupId>com.vaadin</groupId><artifactId>vaadin-core</artifactId></dependency>
         <dependency>
             <groupId>org.financelab</groupId><artifactId>orm</artifactId><version>0.1.0</version>
         </dependency>

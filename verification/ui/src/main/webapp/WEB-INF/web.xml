@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" version="6.1">
+    <listener><listener-class>org.financelab.budget.verification.TestApplication</listener-class></listener>
+    <session-config><session-timeout>30</session-timeout></session-config>
+</web-app>

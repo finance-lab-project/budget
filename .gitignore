@@ -1,1 +1,8 @@
 target/
+node_modules/
+verification/ui/src/main/frontend/generated/
+verification/ui/tsconfig.json
+verification/ui/types.d.ts
+verification/ui/vite.config.ts
+verification/ui/vite.generated.ts
+verification/ui/src/main/bundles/
