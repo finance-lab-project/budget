@@ -13,7 +13,7 @@ public final class GuestPlannerServlet extends HttpServlet {
         response.setContentType("text/html;charset=UTF-8");
         response.getWriter().printf("""
                 <!doctype html><html lang="ru"><meta charset="utf-8"><title>Бюджет</title>
-                <a id="account-action" href="./">Войти</a>%s<script type="module" src="ui/local.js"></script></html>
+                <body>%s<script type="module" src="ui/local.js"></script></body></html>
                 """, BudgetPlanner.month(false));
     }
 }

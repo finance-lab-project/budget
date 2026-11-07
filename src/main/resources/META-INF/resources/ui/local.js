@@ -10,7 +10,9 @@ export function startPlanner(root, accountStorage) {
   const planner = $("#planner");
   if (!planner || planner.dataset.ready) return;
   planner.dataset.ready = "true";
-  const cloud = planner.dataset.mode === "cloud", account = $("#account-action");
+  const cloud = planner.dataset.mode === "cloud";
+  const leaveLink = $("a[data-save-before-leave]");
+  const originalLinkLabel = leaveLink?.textContent;
   const storage = accountStorage || browserStorage(starterCategories([...$("#starter-labels").children].map(n => n.textContent)));
   const savedText = cloud ? "Сохранено в аккаунте." : "Сохранено в этом браузере.";
   const periods = new Intl.DateTimeFormat("ru-RU", {month:"long", timeZone:"UTC"});
@@ -25,9 +27,13 @@ export function startPlanner(root, accountStorage) {
   const values = () => panel === "catalog" ? rows : fields().map(f => f.value);
   const dirty = () => panel !== "history" && baseline !== undefined && JSON.stringify(values()) !== baseline;
   const status = t => { $("#status").textContent = t; };
-  function accountLabel() { if (!cloud) account.textContent = dirty() ? "Сохранить и войти" : "Войти"; }
+  function updateLeaveLink() {
+    if (leaveLink?.dataset.saveBeforeLeave) {
+      leaveLink.textContent = dirty() ? leaveLink.dataset.saveBeforeLeave : originalLinkLabel;
+    }
+  }
   function edited() {
-    accountLabel();
+    updateLeaveLink();
     if (!blocked) status(dirty() ? "Есть несохранённые изменения." : "Изменений нет.");
   }
   function lock(state) {
@@ -144,7 +150,7 @@ export function startPlanner(root, accountStorage) {
         if (revisions.length) showRevision(await request("revision",{month,version:Number(select.value)}));
         status(revisions.length ? "Сохранённые версии доступны только для чтения." : "Сохранённых версий пока нет.");
       }
-      baseline = JSON.stringify(values()); blocked = false; accountLabel(); $("#save").disabled = $("#save-catalog").disabled = false;
+      baseline = JSON.stringify(values()); blocked = false; updateLeaveLink(); $("#save").disabled = $("#save-catalog").disabled = false;
     } catch(e) { failure(e,false); }
     finally { lock(false); }
   }
@@ -205,9 +211,11 @@ export function startPlanner(root, accountStorage) {
     catch(e) { $("#revision-detail").replaceChildren(); failure(e,false); }
     finally { lock(false); }
   };
-  account.onclick = async e => {
-    if (busy || dirty()) { e.preventDefault(); if (!busy && await save()) location.assign(account.href); }
-  };
+  leaveLink?.addEventListener("click", async event => {
+    if (!busy && !dirty()) return;
+    event.preventDefault();
+    if (!busy && await save()) location.assign(leaveLink.href);
+  });
   window.addEventListener("beforeunload", e => { if (dirty() || busy) { e.preventDefault(); e.returnValue = ""; } });
   if (!cloud) window.addEventListener("storage", e => {
     if (![null,catalogKey,key(month)].includes(e.key)) return;

@@ -12,7 +12,9 @@ month, category and history controls. The guest adapter saves to browser storage
 The account route passes its authenticated `BudgetService` to
 `PlannerCommands.execute`. The module JAR serves the planner scripts and
 stylesheet from `META-INF/resources/ui/`. The host supplies the page shell,
-account action, routes, session and request protection.
+routes, session and request protection. Its optional account link can use
+`data-save-before-leave` to save a dirty draft before navigating. The host
+supplies that link's destination and label.
 
 `BudgetPlanner.transfer` renders the import form. After validating the request
 and its CSRF token, the host passes its form parameters and authenticated service
