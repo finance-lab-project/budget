@@ -4,6 +4,8 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.financelab.budget.application.BudgetStore.*;
 import org.financelab.budget.application.SaveResult;
+import org.financelab.budget.application.BudgetService;
+import org.financelab.budget.adapter.ui.PlannerTransfer;
 import org.financelab.budget.domain.*;
 import org.financelab.orm.*;
 import org.flywaydb.core.Flyway;
@@ -117,6 +119,100 @@ class PostgresBudgetStoreIT {
         }
         assertEquals(10, store.catalog(owner).orElseThrow().catalog().categories().size());
         assertEquals(1L, scalar("SELECT count(*) FROM budget.catalog_revision WHERE owner_id = ?", Codecs.BIGINT, id(owner)));
+    }
+
+    @Test void guestTransferReplaysANewMonthAndRequiresReviewBeforeChangingAnExistingOne() {
+        UUID owner = owner();
+        var service = new BudgetService(store, () -> owner);
+        var form = new HashMap<String, String[]>();
+        form.put("month", new String[]{MONTH.toString()});
+        form.put("income", new String[]{"120"});
+        form.put("investment", new String[]{"10"});
+        form.put("label", new String[]{CategoryCatalog.starterLabels().getFirst()});
+        form.put("spend-0", new String[]{"0"});
+        form.put("earlier", new String[]{"""
+                [{"income":"100","investment":"","spending":[""]}]
+                """});
+        assertEquals(200, PlannerTransfer.submit(service, form).status());
+        var month = service.current(MONTH);
+        assertEquals(2, month.version());
+        assertEquals(amount("100.00"), service.revision(month.budget().id(), 1).orElseThrow().budget().income().amount());
+
+        form.put("income", new String[]{"150"});
+        form.put("investment", new String[]{""});
+        assertEquals(409, PlannerTransfer.submit(service, form).status());
+        assertEquals(2, service.current(MONTH).version());
+        form.put("version", new String[]{"2"});
+        form.put("catalog", new String[]{"1"});
+        assertEquals(200, PlannerTransfer.submit(service, form).status());
+        var reviewed = service.current(MONTH);
+        assertEquals(3, reviewed.version());
+        assertEquals(amount("150.00"), reviewed.budget().income().amount());
+        assertEquals(amount("10.00"), reviewed.budget().investment().amount());
+    }
+
+    @Test void transferKeepsArchivedSpendingInItsOwnCategoryAndMonth() {
+        UUID owner = owner();
+        var service = new BudgetService(store, () -> owner);
+        var mapper = tools.jackson.databind.json.JsonMapper.builder().build();
+        var labels = CategoryCatalog.starterLabels();
+        var guestCatalog = new ArrayList<Map<String, Object>>();
+        for (int i = 0; i < labels.size(); i++) {
+            guestCatalog.add(Map.of("id", "starter-" + i, "label", labels.get(i), "archived", i == 0));
+        }
+        var catalogImport = PlannerTransfer.submit(service, Map.of(
+                "operation", new String[]{"catalog"}, "version", new String[]{"1"},
+                "categories", new String[]{mapper.writeValueAsString(guestCatalog)}));
+        assertEquals(200, catalogImport.status());
+        String mappedId = mapper.valueToTree(catalogImport.body().get("mapping")).path("starter-0").asString();
+        UUID id = UUID.fromString(mappedId);
+        var catalog = service.catalog().catalog();
+        assertEquals(Category.Status.ARCHIVED, catalog.category(id).status());
+
+        var empty = service.current(MONTH);
+        var editorCommand = command(empty);
+        var editorLines = new ArrayList<>(editorCommand.spending());
+        editorLines.add(new SpendingValue(id, amount("25.50")));
+        assertInstanceOf(SaveResult.Invalid.class, service.save(new SaveBudget(MONTH, 0, 2,
+                editorCommand.income(), editorLines, editorCommand.investment())));
+
+        var form = new HashMap<String, String[]>();
+        form.put("month", new String[]{MONTH.toString()});
+        form.put("income", new String[]{"100"});
+        form.put("investment", new String[]{""});
+        form.put("label", new String[]{"Старое название"});
+        form.put("spend-0", new String[]{"25,50"});
+        var review = PlannerTransfer.submit(service, form);
+        assertEquals(409, review.status());
+        var available = new HashSet<String>();
+        for (var option : mapper.valueToTree(review.body().get("options"))) available.add(option.path("id").asString());
+        assertTrue(available.contains(mappedId), "Review must offer the original archived category");
+
+        form.put("map-0", new String[]{mappedId});
+        form.put("earlier", new String[]{"""
+                [{"income":"100","investment":"","spending":[null]},
+                 {"income":"100","investment":"","spending":["0"]}]
+                """});
+        var mapped = PlannerTransfer.submit(service, form);
+        assertEquals(409, mapped.status());
+        assertEquals(Map.of(), mapped.body().get("unresolved"));
+        form.put("version", new String[]{"0"});
+        form.put("catalog", new String[]{"2"});
+        assertEquals(200, PlannerTransfer.submit(service, form).status());
+
+        var imported = service.current(MONTH);
+        assertEquals(3, imported.version());
+        assertEquals(Category.Status.ARCHIVED, imported.catalog().catalog().category(id).status());
+        assertEquals(new BigDecimal("25.50"), imported.budget().totalSpending());
+        var lines = imported.budget().spending(catalog);
+        assertEquals(amount("25.50"), lines.stream().filter(l -> l.category().id().equals(id)).findFirst().orElseThrow().line().amount());
+        var first = service.revision(imported.budget().id(), 1).orElseThrow();
+        assertTrue(first.budget().spending(catalog).stream().noneMatch(l -> l.category().id().equals(id)));
+        var second = service.revision(imported.budget().id(), 2).orElseThrow();
+        assertEquals(amount("0"), second.budget().spending(catalog).stream()
+                .filter(l -> l.category().id().equals(id)).findFirst().orElseThrow().line().amount());
+        assertTrue(service.current(MONTH.plusMonths(1)).budget().spending(catalog).stream()
+                .noneMatch(l -> l.category().id().equals(id)));
     }
 
     @Test void firstSaveWritesOnlyFinalInitialStatesAndNoopDoesNotWrite() {
