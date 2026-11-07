@@ -66,8 +66,10 @@ class BudgetBrowserIT {
         page.locator("#investment").fill("200");
         page.locator("#spend-0").fill("0");
         page.locator("#save").click();
+        assertThat(page.locator("#status")).hasText("Сохранено в этом браузере.");
         assertThat(page.locator("#balance")).hasText("1 000,50 ₽");
         page.locator("#spend-0").fill("125,25");
+        assertThat(page.locator("#status")).hasText("Есть несохранённые изменения.");
         page.locator("#save").click();
         assertThat(page.locator("#status")).hasText("Сохранено в этом браузере.");
         context.setOffline(false);
