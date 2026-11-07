@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** A monthly value snapshot. All edits return a new snapshot; this class performs no persistence. */
@@ -61,12 +62,18 @@ public final class Budget {
 
     /** Prepare a current draft: add active missing categories as UNSET, retaining all existing lines. */
     public Budget withCurrentCatalog(CategoryCatalog catalog) {
+        return withCurrentCatalog(catalog, Set.of());
+    }
+
+    /** A transferred snapshot may already contain lines whose categories have since been archived. */
+    public Budget withCurrentCatalog(CategoryCatalog catalog, Set<UUID> importedCategoryIds) {
         validateCatalog(catalog);
         var updated = new ArrayList<>(lines);
         var represented = new HashSet<UUID>();
         lines.forEach(line -> line.categoryId().ifPresent(represented::add));
         for (Category category : catalog.categories()) {
-            if (category.status() == Category.Status.ACTIVE && !represented.contains(category.id())) {
+            boolean belongsInMonth = category.status() == Category.Status.ACTIVE || importedCategoryIds.contains(category.id());
+            if (belongsInMonth && !represented.contains(category.id())) {
                 updated.add(BudgetLine.create(BudgetLine.Kind.SPENDING, Optional.of(category.id())));
             }
         }

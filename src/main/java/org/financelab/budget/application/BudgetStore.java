@@ -16,7 +16,13 @@ import java.util.UUID;
 public interface BudgetStore {
     record SpendingValue(UUID categoryId, BudgetAmount amount) { }
     record SaveBudget(YearMonth month, long expectedVersion, long expectedCatalogVersion,
-                      BudgetAmount income, List<SpendingValue> spending, BudgetAmount investment) {
+                      BudgetAmount income, List<SpendingValue> spending, BudgetAmount investment,
+                      boolean importingSavedLines) {
+        public SaveBudget(YearMonth month, long expectedVersion, long expectedCatalogVersion,
+                          BudgetAmount income, List<SpendingValue> spending, BudgetAmount investment) {
+            this(month, expectedVersion, expectedCatalogVersion, income, spending, investment, false);
+        }
+
         public SaveBudget {
             // Keep malformed/missing fields representable so save can return Invalid.
             if (spending != null) spending = Collections.unmodifiableList(new ArrayList<>(spending));

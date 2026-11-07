@@ -81,6 +81,50 @@ class BudgetBrowserIT {
         assertThat(page.locator("#revision-detail input")).hasCount(0);
     }
 
+    @Test void failedReloadAfterConflictKeepsTheDraftAndNavigationGuards() {
+        page.navigate(URL + "guest");
+        assertThat(page.locator("#save")).isEnabled();
+        page.locator("#income").fill("350");
+        Page other = context.newPage();
+        other.navigate(URL + "guest");
+        assertThat(other.locator("#save")).isEnabled();
+        other.locator("#income").fill("200");
+        other.locator("#save").click();
+        assertThat(other.locator("#status")).hasText("Сохранено в этом браузере.");
+
+        page.locator("#save").click();
+        assertThat(page.locator("#status")).containsText("Сохранённые данные изменились");
+        page.evaluate("""
+                () => {
+                  const read = Storage.prototype.getItem;
+                  Storage.prototype.getItem = function(key) {
+                    if (key.startsWith('finance-lab.guest.v1.')) throw Error('synthetic read failure');
+                    return read.call(this, key);
+                  };
+                  window.restoreBudgetReads = () => { Storage.prototype.getItem = read; };
+                }
+                """);
+        page.onceDialog(Dialog::accept);
+        page.locator("#reload-plan").click();
+        assertThat(page.locator("#status")).containsText("Не удалось прочитать");
+        assertThat(page.locator("#income")).hasValue("350");
+        assertThat(page.locator("#save")).isDisabled();
+        String canUnload = "window.dispatchEvent(new Event('beforeunload', {cancelable:true}))";
+        assertEquals(false, page.evaluate(canUnload), "The retained draft must still guard refresh and close");
+        button("Категории").click();
+        assertThat(page.locator("#leave-dialog")).isVisible();
+        button("Остаться").click();
+        page.locator("#month").selectOption(page.locator("#month").inputValue().equals("01") ? "02" : "01");
+        assertThat(page.locator("#leave-dialog")).isVisible();
+        button("Остаться").click();
+
+        page.evaluate("window.restoreBudgetReads()");
+        page.onceDialog(Dialog::accept);
+        page.locator("#reload-plan").click();
+        assertThat(page.locator("#income")).hasValue("200,00");
+        assertEquals(true, page.evaluate(canUnload));
+    }
+
     @Test void explicitSaveReloadHistoryAndRussianAmounts() {
         income().fill("1,234");
         page.locator("#save").click();

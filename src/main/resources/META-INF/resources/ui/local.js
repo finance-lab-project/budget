@@ -120,36 +120,44 @@ export function startPlanner(root, accountStorage) {
     add("Остаток",money((kopecks(v.income) ?? 0n)-(kopecks(v.investment) ?? 0n)-spent));
     $("#revision-detail").replaceChildren(dl);
   }
-  async function load() {
-    lock(true);
-    blocked = true; baseline = undefined;
+  function showLocation() {
     $("#month").value = month.slice(5); $("#year").value = String(Number(month.slice(0,4)));
     for (const tab of root.querySelectorAll("[data-panel]")) {
       const selected = tab.dataset.panel === panel;
       if (selected) tab.setAttribute("aria-current","page"); else tab.removeAttribute("aria-current");
       $("#"+tab.dataset.panel+"-panel").hidden = !selected;
     }
+  }
+  async function load(nextPanel = panel, nextMonth = month) {
+    lock(true);
+    blocked = true;
     status("Загрузка…"); $("#reload-plan").hidden = true;
     try {
-      if (panel === "month") {
-        view = await request("month",{month});
-        $("#income").value = formatInput(view.income); $("#investment").value = formatInput(view.investment);
-        $("#spending").replaceChildren(...view.lines.map(drawLine)); totals();
+      if (nextPanel === "month") {
+        const saved = await request("month", {month:nextMonth});
+        const income = formatInput(saved.income), investment = formatInput(saved.investment);
+        const lines = saved.lines.map(drawLine);
+        view = saved;
+        $("#income").value = income; $("#investment").value = investment;
+        $("#spending").replaceChildren(...lines); totals();
         status(view.version ? savedText : "Пустой месяц. Сохраните план после ввода сумм.");
-      } else if (panel === "catalog") {
+      } else if (nextPanel === "catalog") {
         catalog = await request("catalog",{}); rows = catalog.categories.map(c=>({...c}));
         renderCategories(); status("");
       } else {
-        const revisions = await request("history",{month});
+        const revisions = await request("history",{month:nextMonth});
+        const latest = revisions.length ? await request("revision",{month:nextMonth,version:revisions[0].version}) : null;
         const select = $("#revision"); select.replaceChildren(); $("#revision-detail").replaceChildren();
         for (const r of revisions) {
           const when = r.at ? " · "+new Intl.DateTimeFormat("ru-RU",{dateStyle:"short",timeStyle:"medium",timeZone:"Europe/Moscow"}).format(new Date(r.at))+" (МСК)" : "";
           select.add(new Option("Версия "+r.version+when,r.version));
         }
         select.disabled = !revisions.length;
-        if (revisions.length) showRevision(await request("revision",{month,version:Number(select.value)}));
+        if (latest) showRevision(latest);
         status(revisions.length ? "Сохранённые версии доступны только для чтения." : "Сохранённых версий пока нет.");
       }
+      // Commit navigation and its clean baseline only after the replacement data is available.
+      panel = nextPanel; month = nextMonth; showLocation();
       baseline = JSON.stringify(values()); blocked = false; updateLeaveLink(); $("#save").disabled = $("#save-catalog").disabled = false;
     } catch(e) { failure(e,false); }
     finally { lock(false); }
@@ -196,13 +204,13 @@ export function startPlanner(root, accountStorage) {
   $("#add-category").onclick = () => { rows.push({id:crypto.randomUUID(),label:"",archived:false}); renderCategories(rows.length-1); edited(); };
   $("#reload-plan").onclick = async () => { if (!busy && (!dirty() || confirm("Загрузить сохранённые данные и отменить текущий ввод?"))) await load(); };
   for (const tab of root.querySelectorAll("[data-panel]")) tab.onclick = async () => {
-    if (panel !== tab.dataset.panel && await canLeave()) { panel = tab.dataset.panel; await load(); }
+    if (panel !== tab.dataset.panel && await canLeave()) await load(tab.dataset.panel, month);
   };
   async function selectMonth() {
     const year = $("#year"), next = year.value.padStart(4,"0")+"-"+$("#month").value;
     const valid = year.validity.valid && validMonth(next);
     year.value = String(Number(month.slice(0,4))); $("#month").value = month.slice(5);
-    if (valid && next !== month && await canLeave()) { month = next; await load(); }
+    if (valid && next !== month && await canLeave()) await load(panel, next);
   }
   $("#year").onchange = $("#month").onchange = selectMonth;
   $("#revision").onchange = async () => {
@@ -223,6 +231,7 @@ export function startPlanner(root, accountStorage) {
     if (!dirty()) void load();
     else status("Данные в другой вкладке изменились. Ваш ввод остался на экране.");
   });
+  showLocation();
   void load();
 }
 if (document.querySelector('#planner[data-mode="local"]')) startPlanner(document);

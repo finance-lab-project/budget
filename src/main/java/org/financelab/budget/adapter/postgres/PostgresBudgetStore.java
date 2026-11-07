@@ -113,6 +113,9 @@ public final class PostgresBudgetStore implements BudgetStore {
                     guard.get().changedAt(), catalog.catalog());
             Budget draft = previous == null ? Budget.create(owner, command.month(), catalog.catalog())
                     : previous.withCurrentCatalog(catalog.catalog());
+            if (command.importingSavedLines()) {
+                draft = draft.withCurrentCatalog(catalog.catalog(), values.keySet());
+            }
             var permitted = new HashSet<UUID>();
             draft.lines().forEach(line -> line.categoryId().ifPresent(permitted::add));
             if (!permitted.equals(values.keySet())) return invalid("spending.categories");

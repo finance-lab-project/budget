@@ -19,7 +19,8 @@ supplies that link's destination and label.
 `BudgetPlanner.transfer` renders the import form. After validating the request
 and its CSRF token, the host passes its form parameters and authenticated service
 to `PlannerTransfer.submit`. A new account month can replay earlier guest
-amounts in order. An existing account month requires review before different
+amounts in order. Spending saved before a category was archived transfers into
+that same category. Other new months continue to omit it. An existing account month requires review before different
 amounts are written. Blank guest fields preserve existing amounts. Original
 dated snapshots stay in the browser when it has more than one version.
 

@@ -73,7 +73,7 @@ async function transfer(item, decision = {}) {
   });
   if (item.history.length > 1) params.set("earlier",JSON.stringify(item.history.slice(0,-1).map(s => {
     const amounts = new Map(s.lines.map(l => [l.id,l.amount]));
-    return {income:s.income,investment:s.investment,spending:draft.lines.map(l => amounts.get(l.id) ?? "")};
+    return {income:s.income,investment:s.investment,spending:draft.lines.map(l => amounts.get(l.id) ?? null)};
   })));
   try {
     if (localStorage.getItem(key(month)) !== raw) throw Error("Месяц изменился в другой вкладке. Откройте перенос заново.");
