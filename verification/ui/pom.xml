@@ -11,7 +11,7 @@
         <vaadin.ci.build>true</vaadin.ci.build>
     </properties>
     <dependencies>
-        <dependency><groupId>org.financelab</groupId><artifactId>budget</artifactId><version>0.1.0</version></dependency>
+        <dependency><groupId>org.financelab</groupId><artifactId>budget</artifactId><version>0.2.0</version></dependency>
         <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><version>6.1.0</version><scope>provided</scope></dependency>
         <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId><version>13.12.0</version></dependency>
         <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId><version>13.12.0</version></dependency>

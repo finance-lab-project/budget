@@ -5,7 +5,23 @@ as a module-owned Vaadin component, using the application assembly's pinned
 Vaadin 25.3.5. The library does not register an anonymous route or own a servlet,
 database connection, migration runner, pool, login flow or application lifecycle.
 
-## Root integration
+## Shared guest and account planner
+
+`BudgetPlanner.month(false)` and `BudgetPlanner.month(true)` render the same
+month, category and history controls. The guest adapter saves to browser storage.
+The account route passes its authenticated `BudgetService` to
+`PlannerCommands.execute`. The module JAR serves the planner scripts and
+stylesheet from `META-INF/resources/ui/`. The host supplies the page shell,
+account action, routes, session and request protection.
+
+`BudgetPlanner.transfer` renders the import form. After validating the request
+and its CSRF token, the host passes its form parameters and authenticated service
+to `PlannerTransfer.submit`. A new account month can replay earlier guest
+amounts in order. An existing account month requires review before different
+amounts are written. Blank guest fields preserve existing amounts. Original
+dated snapshots stay in the browser when it has more than one version.
+
+## Vaadin component integration
 
 After migrations, mapping validation and catalog initialization described in
 [persistence.md](persistence.md), the root constructs a **new** `BudgetService`

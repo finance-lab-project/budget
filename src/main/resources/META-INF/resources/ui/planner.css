@@ -1,0 +1,54 @@
+.planner { width: 100%; max-width: 75rem; margin: 0 auto; padding: clamp(1.3rem,4vw,3rem); }
+.page-title { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.4rem; }
+.page-title p { color: var(--muted); }
+.page-title p { margin: 0; }
+.month, .transfer-month label { display: block; font-weight: 600; }
+.month input { display: block; width: 100%; min-height: 3rem; padding: .55rem .8rem;
+  background: white; color: var(--ink); border-radius: .55rem; border: 1px solid #798e83; }
+.date-controls { display: flex; gap: .7rem; }
+.month input, .month select { margin-top: .3rem; }
+#year { width: 6.1rem; }
+.planner-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem,.49fr); gap: clamp(1rem,2.5vw,2rem); align-items: start; }
+.summary { grid-column: 2; grid-row: 1; background: var(--pale); color: #103c2e; border-radius: 1.3rem; padding: clamp(1.2rem,3vw,2.2rem); }
+.summary h2 { margin-bottom: .3rem; font-size: 1.05rem; }
+.summary output { font-size: clamp(1.8rem,3.1vw,2.7rem); font-weight: 650; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.summary .negative { color: #873c32; }
+.summary dl { display: grid; grid-template-columns: auto minmax(0,1fr); gap: .55rem; border-top: 1px solid #9fbdac;
+  padding-top: 1rem; margin: 1rem 0 0; font-variant-numeric: tabular-nums; }
+.summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+#plan { grid-column: 1; grid-row: 1; }
+.field-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: end; gap: .85rem 1.15rem; }
+
+.amount { color: var(--ink); font-size: .9rem; font-weight: 560; display: block; }
+.amount-box { display: flex; align-items: center; margin-top: .32rem; border: 1px solid #81958a; border-radius: .55rem; overflow: hidden; }
+.amount-box:focus-within { outline: 2px solid var(--primary); }
+.amount-box > span { padding-right: .85rem; font-weight: 400; color: var(--muted); }
+.amount input { width: 100%; min-width: 0; min-height: 2.85rem; border: 0; padding: .55rem .8rem;
+  font-size: 1rem; outline: 0; background: var(--paper); color: var(--ink); font-variant-numeric: tabular-nums; }
+.amount small { color: #a02427; }
+.amount:has([aria-invalid=true]) .amount-box { border: 2px solid #a02427; }
+.transfer-month { margin: .85rem 0; }
+.transfer-month h2 { text-transform: capitalize; margin: 0 0 .4rem; }
+.transfer-month select { margin: .4rem 0; }
+#plan section + section { border-top: 1px solid var(--line); margin-top: 1.5rem; padding-top: 1.3rem; }
+#plan section > .amount { max-width: 24rem; }
+.planner-nav { display: flex; flex-wrap: wrap; gap: .25rem; background: #e4ede6; border-radius: 1.5rem;
+  width: fit-content; max-width: 100%; padding: .2rem; margin-bottom: 1.25rem; }
+.planner-nav button { border: 0; color: var(--ink); background: transparent; padding: .5rem 1rem; min-height: 2.75rem; border-radius: 1.35rem; }
+.planner-nav button[aria-current=page] { background: var(--primary); color: white; font-weight: 650; }
+.category-row { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; margin: .65rem 0; }
+.category-row input { flex: 1 1 12rem; min-width: 0; padding: .6rem; border: 1px solid #81958a; border-radius: .55rem; }
+.category-row button { padding: .35rem .7rem; min-width: 2.75rem; }
+#history-panel select { width: auto; max-width: 100%; }
+#revision-detail dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem 1rem; }
+#revision-detail dd { margin: 0; text-align: right; }
+#revision-detail dd,#revision-detail dt,.category-row,.amount { overflow-wrap: anywhere; }
+#status { min-height: 1.5em; }
+dialog { max-width: min(30rem,95%); color: var(--ink); border: 1px solid var(--line); border-radius: 1rem; padding: 1.6rem; }
+dialog::backdrop { background: #112e2460; }
+@media(max-width:700px) {
+  .planner-grid,.field-grid { grid-template-columns: minmax(0,1fr); }
+  .summary,#plan { grid-column: auto; grid-row: auto; }
+  .page-title { align-items: start; flex-direction: column; }
+  .planner-nav button { padding-inline: .8rem; }
+}

@@ -6,7 +6,7 @@
         <groupId>org.financelab</groupId><artifactId>build-parent</artifactId><version>0.1.0</version>
         <relativePath>build-support/build-parent-0.1.0.pom</relativePath>
     </parent>
-    <artifactId>budget</artifactId><version>0.1.0</version>
+    <artifactId>budget</artifactId><version>0.2.0</version>
     <name>Finance Lab Budget</name>
     <properties>
         <vaadin.version>25.3.5</vaadin.version>

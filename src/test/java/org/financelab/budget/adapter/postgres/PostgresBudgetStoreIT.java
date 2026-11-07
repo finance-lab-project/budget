@@ -4,6 +4,8 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.financelab.budget.application.BudgetStore.*;
 import org.financelab.budget.application.SaveResult;
+import org.financelab.budget.application.BudgetService;
+import org.financelab.budget.adapter.ui.PlannerTransfer;
 import org.financelab.budget.domain.*;
 import org.financelab.orm.*;
 import org.flywaydb.core.Flyway;
@@ -117,6 +119,36 @@ class PostgresBudgetStoreIT {
         }
         assertEquals(10, store.catalog(owner).orElseThrow().catalog().categories().size());
         assertEquals(1L, scalar("SELECT count(*) FROM budget.catalog_revision WHERE owner_id = ?", Codecs.BIGINT, id(owner)));
+    }
+
+    @Test void guestTransferReplaysANewMonthAndRequiresReviewBeforeChangingAnExistingOne() {
+        UUID owner = owner();
+        var service = new BudgetService(store, () -> owner);
+        var form = new HashMap<String, String[]>();
+        form.put("month", new String[]{MONTH.toString()});
+        form.put("income", new String[]{"120"});
+        form.put("investment", new String[]{"10"});
+        form.put("label", new String[]{CategoryCatalog.starterLabels().getFirst()});
+        form.put("spend-0", new String[]{"0"});
+        form.put("earlier", new String[]{"""
+                [{"income":"100","investment":"","spending":[""]}]
+                """});
+        assertEquals(200, PlannerTransfer.submit(service, form).status());
+        var month = service.current(MONTH);
+        assertEquals(2, month.version());
+        assertEquals(amount("100.00"), service.revision(month.budget().id(), 1).orElseThrow().budget().income().amount());
+
+        form.put("income", new String[]{"150"});
+        form.put("investment", new String[]{""});
+        assertEquals(409, PlannerTransfer.submit(service, form).status());
+        assertEquals(2, service.current(MONTH).version());
+        form.put("version", new String[]{"2"});
+        form.put("catalog", new String[]{"1"});
+        assertEquals(200, PlannerTransfer.submit(service, form).status());
+        var reviewed = service.current(MONTH);
+        assertEquals(3, reviewed.version());
+        assertEquals(amount("150.00"), reviewed.budget().income().amount());
+        assertEquals(amount("10.00"), reviewed.budget().investment().amount());
     }
 
     @Test void firstSaveWritesOnlyFinalInitialStatesAndNoopDoesNotWrite() {

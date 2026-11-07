@@ -57,6 +57,28 @@ class BudgetBrowserIT {
         state("ready");
     }
 
+    @Test void packagedGuestPlannerSavesOfflineAndKeepsEarlierAmounts() {
+        page.navigate(URL + "guest");
+        assertThat(page.locator("#save")).isEnabled();
+        assertEquals(List.of("Доход", "Инвестиции", "Расходы"), page.locator("#plan section h2").allTextContents());
+        context.setOffline(true);
+        page.locator("#income").fill("1 200,50");
+        page.locator("#investment").fill("200");
+        page.locator("#spend-0").fill("0");
+        page.locator("#save").click();
+        assertThat(page.locator("#balance")).hasText("1 000,50 ₽");
+        page.locator("#spend-0").fill("125,25");
+        page.locator("#save").click();
+        assertThat(page.locator("#status")).hasText("Сохранено в этом браузере.");
+        context.setOffline(false);
+        page.reload();
+        assertThat(page.locator("#balance")).hasText("875,25 ₽");
+        button("История").click();
+        page.locator("#revision").selectOption("1");
+        assertThat(page.locator("#revision-detail")).containsText("1 000,50 ₽");
+        assertThat(page.locator("#revision-detail input")).hasCount(0);
+    }
+
     @Test void explicitSaveReloadHistoryAndRussianAmounts() {
         income().fill("1,234");
         page.locator("#save").click();

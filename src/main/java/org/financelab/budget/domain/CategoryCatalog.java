@@ -14,6 +14,10 @@ public record CategoryCatalog(UUID ownerId, List<Category> categories) {
             "Здоровье и уход за собой", "Одежда и товары для дома", "Подписки и связь",
             "Образование и хобби", "Кредиты, страхование и налоги", "Прочие и нерегулярные расходы");
 
+    public static List<String> starterLabels() {
+        return STARTER_LABELS;
+    }
+
     public CategoryCatalog {
         Objects.requireNonNull(ownerId, "ownerId");
         categories = List.copyOf(categories);

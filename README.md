@@ -16,6 +16,8 @@ Run `scripts/verify.sh` with the pinned Java 27 toolchain, Maven 3.10.0 and Dock
 already running. It builds the exact ORM dependency and verifies the module on
 disposable PostgreSQL 18.6.
 
+The [shared planner](docs/ui.md#shared-guest-and-account-planner) packages the
+guest and account views, browser storage and transfer rules in the Budget JAR.
 The [Russian Vaadin UI](docs/ui.md) implements the monthly planner, category
 settings, explicit saves and read-only history for [issue #4](https://github.com/finance-lab-project/budget/issues/4).
 Run `scripts/verify-ui.sh` with the pinned Java/Node/Jetty tools for synthetic
