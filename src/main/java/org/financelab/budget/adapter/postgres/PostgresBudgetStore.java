@@ -262,14 +262,27 @@ public final class PostgresBudgetStore implements BudgetStore {
     }
 
     private static CatalogView loadCatalog(ReadSession s, UUID owner, CatalogRevision revision) {
-        var ids = s.query(new Sql("SELECT category_id FROM budget.category_owner WHERE owner_id = ?"),
-                List.of(uuid(owner)), r -> required(r, 1, Codecs.UUID));
+        record CategoryStart(UUID id, Instant at) { }
+        var starts = s.query(new Sql("""
+                SELECT owned.category_id,
+                    (SELECT min(changed_at) FROM budget.category_name WHERE category_id = owned.category_id),
+                    (SELECT min(changed_at) FROM budget.category_position WHERE category_id = owned.category_id),
+                    (SELECT min(changed_at) FROM budget.category_status_history WHERE category_id = owned.category_id)
+                FROM budget.category_owner owned WHERE owned.owner_id = ?
+                """), List.of(uuid(owner)), r -> {
+            Instant at = required(r, 2, Codecs.INSTANT);
+            if (!at.equals(required(r, 3, Codecs.INSTANT)) || !at.equals(required(r, 4, Codecs.INSTANT))) {
+                throw new IllegalStateException("Inconsistent category creation facts");
+            }
+            return new CategoryStart(required(r, 1, Codecs.UUID), at);
+        });
         var categories = new ArrayList<Category>();
-        for (UUID id : ids) {
+        for (CategoryStart start : starts) {
+            if (revision.changedAt().isBefore(start.at())) continue;
+            UUID id = start.id();
             var name = s.asOf(NAME, id, revision.changedAt());
             var position = s.asOf(POSITION, id, revision.changedAt());
             var status = s.asOf(STATUS, id, revision.changedAt());
-            if (name.isEmpty() && position.isEmpty() && status.isEmpty()) continue; // Not yet created at this revision.
             categories.add(new Category(id, owner, name.orElseThrow().value(), position.orElseThrow().value(),
                     Category.Status.valueOf(status.orElseThrow().value())));
         }

@@ -21,7 +21,7 @@ export function startPlanner(root, accountStorage) {
     $("#month").add(new Option(n[0].toUpperCase() + n.slice(1), String(i+1).padStart(2,"0")));
   }
   let month = new Intl.DateTimeFormat("sv-SE", {timeZone:"Europe/Moscow", year:"numeric", month:"2-digit"}).format(new Date());
-  let panel = "month", view, catalog, rows = [], baseline, busy = false, blocked = false;
+  let panel = "month", view, catalog, rows = [], baseline, busy = false, blocked = false, decision;
   const fields = () => [...$("#plan").querySelectorAll("input")];
   const spending = () => [...$("#spending").querySelectorAll("input")];
   const values = () => panel === "catalog" ? rows : fields().map(f => f.value);
@@ -196,9 +196,19 @@ export function startPlanner(root, accountStorage) {
   }
   async function canLeave() {
     if (busy) return false;
+    while (decision) {
+      if (await decision !== "stay") return false;
+    }
+    if (busy) return false;
     if (!dirty()) return true;
     const d = $("#leave-dialog"); d.returnValue = "stay"; d.showModal();
-    const choice = await new Promise(resolve=>d.addEventListener("close",()=>resolve(d.returnValue),{once:true}));
+    const closed = new Promise(resolve=>d.addEventListener("close",()=>{
+      const choice = d.returnValue;
+      decision = undefined;
+      resolve(choice);
+    },{once:true}));
+    decision = closed;
+    const choice = await closed;
     return choice === "discard" || choice === "save" && await save();
   }
   $("#plan").oninput = () => { totals(); edited(); };
