@@ -86,6 +86,46 @@ class PostgresBudgetStoreIT {
         assertEquals(beforeNoop, counts());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"bare", "futureIncomplete", "differentInitialTimes", "visibleMissingStatus"})
+    void malformedInitialCategoryFactsFailCurrentAndHistoricalReads(String mode) {
+        UUID owner = owner();
+        BudgetRevision month = saved(store.save(owner, command(store.current(owner, MONTH))));
+        Instant at = store.catalog(owner).orElseThrow().revision().changedAt();
+        tx.write(s -> {
+            UUID category = UUID.randomUUID();
+            s.insertAnchor(BudgetMappings.CATEGORY, category);
+            s.insertStatic(BudgetMappings.OWNER, category, owner);
+            if (mode.equals("differentInitialTimes")) {
+                s.append(BudgetMappings.NAME, category, at.minusSeconds(3), "Malformed category");
+                s.append(BudgetMappings.POSITION, category, at.minusSeconds(2), 11);
+                s.append(BudgetMappings.STATUS, category, at.minusSeconds(1), "ACTIVE");
+            } else if (!mode.equals("bare")) {
+                Instant first = mode.equals("futureIncomplete") ? at.plusSeconds(1) : at;
+                s.append(BudgetMappings.NAME, category, first, "Malformed category");
+                s.append(BudgetMappings.POSITION, category, first, 11);
+            }
+            return null;
+        });
+        var failures = new ArrayList<Throwable>();
+        var rejecting = new PostgresBudgetStore(tx, failures::add);
+        assertThrows(IllegalStateException.class, () -> rejecting.catalog(owner));
+        assertThrows(IllegalStateException.class, () -> rejecting.current(owner, MONTH));
+        assertThrows(IllegalStateException.class, () -> rejecting.revision(owner, month.budgetId(), month.version()));
+        assertEquals(3, failures.size());
+        failures.forEach(failure -> assertInstanceOf(PersistenceFailure.class, failure));
+        assertEquals(1, store.revisions(owner, month.budgetId()).size());
+    }
+
+    @Test void validLaterCategoryIsAbsentFromEarlierPinnedHistory() {
+        UUID owner = owner();
+        BudgetRevision month = saved(store.save(owner, command(store.current(owner, MONTH))));
+        CatalogView first = store.catalog(owner).orElseThrow();
+        saved(store.saveCatalog(owner, first.revision().version(), first.catalog().add("Later category")));
+        assertEquals(11, store.catalog(owner).orElseThrow().catalog().categories().size());
+        assertEquals(10, store.revision(owner, month.budgetId(), month.version()).orElseThrow().catalog().catalog().categories().size());
+    }
+
     @Test void failedInitializationLeavesNoClaimOrPartialCategories() {
         UUID owner = UUID.randomUUID();
         var failures = new ArrayList<Throwable>();

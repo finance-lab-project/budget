@@ -172,6 +172,39 @@ class BudgetBrowserIT {
         assertSharedSavedValue(panel);
     }
 
+    @Test void rapidStayAndReselectDoesNotConsumeTheNextDiscardDecision() {
+        page.navigate(URL + "account");
+        assertThat(page.locator("#save")).isEnabled();
+        page.locator("#income").fill("100");
+        page.locator("#save").click();
+        assertThat(page.locator("#status")).hasText("Сохранено в аккаунте.");
+        page.waitForFunction("!document.querySelector('#month-panel').inert");
+        page.locator("#income").fill("130");
+        button("Категории").click();
+        assertThat(page.locator("#leave-dialog")).isVisible();
+        boolean reopened = (boolean) page.evaluate("""
+                async () => {
+                  const dialog = document.querySelector('#leave-dialog');
+                  const closed = new Promise(resolve => dialog.addEventListener('close', resolve, {once:true}));
+                  dialog.close('stay');
+                  document.querySelector('[data-panel="catalog"]').click();
+                  const reopened = dialog.open;
+                  await closed;
+                  return reopened;
+                }
+                """);
+        assertFalse(reopened, "A pending close event must be consumed before the dialog is reused");
+        assertThat(page.locator("#income")).hasValue("130");
+        assertThat(page.locator("#leave-dialog")).isVisible();
+        page.locator("#leave-dialog").getByRole(AriaRole.BUTTON,
+                new Locator.GetByRoleOptions().setName("Не сохранять").setExact(true)).click();
+        assertThat(page.locator("#catalog-panel")).isVisible();
+        button("План месяца").click();
+        assertThat(page.locator("#income")).hasValue("100,00");
+        button("История").click();
+        assertThat(page.locator("#revision option")).hasCount(1);
+    }
+
     private void sharedDraftWithFailedRefresh(String panel) {
         page.navigate(URL + "account");
         assertThat(page.locator("#save")).isEnabled();
