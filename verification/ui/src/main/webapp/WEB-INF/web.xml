@@ -3,5 +3,7 @@
     <listener><listener-class>org.financelab.budget.verification.TestApplication</listener-class></listener>
     <servlet><servlet-name>guest</servlet-name><servlet-class>org.financelab.budget.verification.GuestPlannerServlet</servlet-class></servlet>
     <servlet-mapping><servlet-name>guest</servlet-name><url-pattern>/guest</url-pattern></servlet-mapping>
+    <servlet><servlet-name>account</servlet-name><servlet-class>org.financelab.budget.verification.AccountPlannerServlet</servlet-class></servlet>
+    <servlet-mapping><servlet-name>account</servlet-name><url-pattern>/account</url-pattern></servlet-mapping>
     <session-config><session-timeout>30</session-timeout></session-config>
 </web-app>

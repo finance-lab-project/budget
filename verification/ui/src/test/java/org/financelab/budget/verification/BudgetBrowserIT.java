@@ -3,6 +3,8 @@ package org.financelab.budget.verification;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.AriaRole;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -72,10 +74,13 @@ class BudgetBrowserIT {
         assertThat(page.locator("#status")).hasText("Есть несохранённые изменения.");
         page.locator("#save").click();
         assertThat(page.locator("#status")).hasText("Сохранено в этом браузере.");
+        page.locator("#save").click(); // An unchanged save must not create another history entry.
+        assertThat(page.locator("#status")).hasText("Сохранено в этом браузере.");
         context.setOffline(false);
         page.reload();
         assertThat(page.locator("#balance")).hasText("875,25 ₽");
         button("История").click();
+        assertThat(page.locator("#revision option")).hasCount(2);
         page.locator("#revision").selectOption("1");
         assertThat(page.locator("#revision-detail")).containsText("1 000,50 ₽");
         assertThat(page.locator("#revision-detail input")).hasCount(0);
@@ -123,6 +128,93 @@ class BudgetBrowserIT {
         page.locator("#reload-plan").click();
         assertThat(page.locator("#income")).hasValue("200,00");
         assertEquals(true, page.evaluate(canUnload));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"month", "catalog"})
+    void confirmedSaveAcknowledgementSurvivesRefreshFailure(String panel) {
+        sharedDraftWithFailedRefresh(panel);
+        Locator save = page.locator(panel.equals("month") ? "#save" : "#save-catalog");
+        String confirmation = panel.equals("month") ? "Сохранено в аккаунте." : "Категории сохранены.";
+        int version = panel.equals("month") ? 1 : 2;
+        save.click();
+        page.waitForFunction("window.failedRefreshes === 1");
+        assertThat(page.locator("#status")).hasText(confirmation + " Не удалось обновить данные. Загрузите сохранённые данные.");
+        assertEquals(version, ((Number) page.evaluate("window.confirmedVersion")).intValue());
+        assertEquals(true, page.evaluate("window.dispatchEvent(new Event('beforeunload', {cancelable:true}))"));
+        assertThat(page.locator("#reload-plan")).isVisible();
+        assertThat(save).isDisabled();
+        assertEquals(1, ((Number) page.evaluate("window.writeAttempts")).intValue());
+
+        // An explicit reload restores editing; an unchanged save must retain the same revision.
+        page.locator("#reload-plan").click();
+        assertThat(save).isEnabled();
+        save.click();
+        page.waitForFunction("window.failedRefreshes === 2");
+        assertThat(page.locator("#status")).hasText(confirmation + " Не удалось обновить данные. Загрузите сохранённые данные.");
+        assertEquals(version, ((Number) page.evaluate("window.confirmedVersion")).intValue());
+        assertEquals(2, ((Number) page.evaluate("window.writeAttempts")).intValue());
+        assertSharedSavedValue(panel);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"month", "catalog"})
+    void saveAndNavigateContinuesAfterConfirmedSaveRefreshFailure(String panel) {
+        sharedDraftWithFailedRefresh(panel);
+        button(panel.equals("month") ? "Категории" : "План месяца").click();
+        assertThat(page.locator("#leave-dialog")).isVisible();
+        page.locator("#leave-dialog").getByRole(AriaRole.BUTTON,
+                new Locator.GetByRoleOptions().setName("Сохранить").setExact(true)).click();
+        page.waitForFunction("window.failedRefreshes === 1");
+        assertThat(page.locator(panel.equals("month") ? "#catalog-panel" : "#month-panel")).isVisible();
+        assertThat(page.locator("#leave-dialog")).isHidden();
+        assertEquals(1, ((Number) page.evaluate("window.writeAttempts")).intValue());
+        assertSharedSavedValue(panel);
+    }
+
+    private void sharedDraftWithFailedRefresh(String panel) {
+        page.navigate(URL + "account");
+        assertThat(page.locator("#save")).isEnabled();
+        if (panel.equals("month")) page.locator("#income").fill("1111,11");
+        else {
+            button("Категории").click();
+            page.locator("#categories input").first().fill("Сохранённая категория");
+        }
+        page.evaluate("""
+                read => {
+                  const request = window.plannerStorage, write = read === 'month' ? 'save' : 'saveCatalog';
+                  let rejectRead = false;
+                  window.writeAttempts = 0; window.failedRefreshes = 0; window.confirmedVersion = null;
+                  window.plannerStorage = async (action, data) => {
+                    if (action === read && rejectRead) {
+                      rejectRead = false; window.failedRefreshes++;
+                      throw Error('synthetic post-save read failure');
+                    }
+                    if (action === write) window.writeAttempts++;
+                    const result = await request(action, data);
+                    if (action === write && result.saved) {
+                      rejectRead = true; window.confirmedVersion = result.revision?.version ?? null;
+                    }
+                    return result;
+                  };
+                }
+                """, panel);
+    }
+
+    private void assertSharedSavedValue(String panel) {
+        Page other = context.newPage();
+        other.navigate(URL + "account");
+        assertThat(other.locator("#save")).isEnabled();
+        if (panel.equals("month")) {
+            assertThat(other.locator("#income")).hasValue("1 111,11");
+            button(other, "История").click();
+            assertThat(other.locator("#revision option")).hasCount(1);
+            assertThat(other.locator("#revision-detail")).containsText("1 111,11 ₽");
+        } else {
+            button(other, "Категории").click();
+            assertThat(other.locator("#categories input").first()).hasValue("Сохранённая категория");
+        }
+        other.close();
     }
 
     @Test void explicitSaveReloadHistoryAndRussianAmounts() {

@@ -94,10 +94,11 @@ export function browserStorage(starters) {
         validateCategories(rows);
         const byId = new Map(rows.map(c => [c.id,c]));
         if (catalog.categories.some(c => !byId.has(c.id) || c.archived && !byId.get(c.id).archived)) return {error:"invalid"};
+        let version = catalog.version;
         if (JSON.stringify(catalog.categories) !== JSON.stringify(rows)) {
-          localStorage.setItem(catalogKey, JSON.stringify({version:catalog.version + 1, categories:rows}));
+          localStorage.setItem(catalogKey, JSON.stringify({version:++version, categories:rows}));
         }
-        return {saved:true};
+        return {saved:true, revision:{version}};
       }
       if (!validMonth(data.month)) return {error:"invalid"};
       const raw = localStorage.getItem(key(data.month)), history = versions(raw, starters), last = history.at(-1);
@@ -113,12 +114,13 @@ export function browserStorage(starters) {
       });
       const amounts = [data.income, data.investment, ...lines.map(l => l.amount)].map(kopecks);
       const previous = last ? [last.income, last.investment, ...lines.map(c => last.lines.find(l => l.id === c.id)?.amount ?? "")].map(kopecks) : [];
+      let revision = last;
       if (!last || last.lines.length !== lines.length || amounts.some((a, i) => a !== previous[i])) {
-        const version = {version:view.version+1, catalogVersion:catalog.version, at:new Date().toISOString(),
+        revision = {version:view.version+1, catalogVersion:catalog.version, at:new Date().toISOString(),
           stamp:crypto.randomUUID(), income:data.income, investment:data.investment, lines};
-        localStorage.setItem(key(data.month), JSON.stringify({schema:2,versions:[...history, version]}));
+        localStorage.setItem(key(data.month), JSON.stringify({schema:2,versions:[...history, revision]}));
       }
-      return {saved:true};
+      return {saved:true, revision};
     };
     return action === "save" || action === "saveCatalog" ? navigator.locks.request(lock, operation) : operation();
   };

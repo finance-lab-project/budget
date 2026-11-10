@@ -128,10 +128,10 @@ export function startPlanner(root, accountStorage) {
       $("#"+tab.dataset.panel+"-panel").hidden = !selected;
     }
   }
-  async function load(nextPanel = panel, nextMonth = month) {
+  async function load(nextPanel = panel, nextMonth = month, confirmation) {
     lock(true);
     blocked = true;
-    status("Загрузка…"); $("#reload-plan").hidden = true;
+    status(confirmation || "Загрузка…"); $("#reload-plan").hidden = true;
     try {
       if (nextPanel === "month") {
         const saved = await request("month", {month:nextMonth});
@@ -159,7 +159,11 @@ export function startPlanner(root, accountStorage) {
       // Commit navigation and its clean baseline only after the replacement data is available.
       panel = nextPanel; month = nextMonth; showLocation();
       baseline = JSON.stringify(values()); blocked = false; updateLeaveLink(); $("#save").disabled = $("#save-catalog").disabled = false;
-    } catch(e) { failure(e,false); }
+      if (confirmation) status(confirmation);
+    } catch(e) {
+      failure(e,false);
+      if (confirmation) status(confirmation + " Не удалось обновить данные. Загрузите сохранённые данные.");
+    }
     finally { lock(false); }
   }
   async function save() {
@@ -180,10 +184,13 @@ export function startPlanner(root, accountStorage) {
     } else return false;
     lock(true);
     try {
-      await request(action,data);
-      await load();
-      if (!blocked) status(panel === "catalog" ? "Категории сохранены." : savedText);
-      return !blocked;
+      const accepted = await request(action,data);
+      if (panel === "month") Object.assign(view, {version:accepted.revision.version, stamp:accepted.revision.stamp ?? null});
+      else catalog.version = accepted.revision.version;
+      // A confirmed write is clean even if the following read fails.
+      baseline = JSON.stringify(values()); updateLeaveLink();
+      await load(panel, month, panel === "catalog" ? "Категории сохранены." : savedText);
+      return true;
     } catch(e) { failure(e,true); return false; }
     finally { lock(false); }
   }

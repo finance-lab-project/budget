@@ -83,7 +83,8 @@ public final class PlannerCommands {
     }
 
     private static Object result(SaveResult<?> r) {
-        if (r instanceof SaveResult.Saved<?> || r instanceof SaveResult.Unchanged<?>) return Map.of("saved", true);
+        if (r instanceof SaveResult.Saved<?> saved) return Map.of("saved", true, "revision", saved.revision());
+        if (r instanceof SaveResult.Unchanged<?> unchanged) return Map.of("saved", true, "revision", unchanged.revision());
         return Map.of("error", r instanceof SaveResult.Conflict<?> ? "conflict" : r instanceof SaveResult.Invalid<?> ? "invalid"
                 : r instanceof SaveResult.Failed<?> ? "failed" : "unknown");
     }
